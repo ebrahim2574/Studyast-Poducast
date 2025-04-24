@@ -1,0 +1,834 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StudyCast - Record, Review, Retain</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.2.0/css/all.min.css" integrity="sha512-xh6O/CkQoPOWDdYTDqeRdPCVd1SpvCA9XXcUnZS2FmJNp1coAFzvtCN9BmamE+4aHK8yyUHUSCcJHgXloTyT2A==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f7fafc; /* Slightly lighter gray */
+            color: #2d3748; /* Gray 800 */
+        }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #edf2f7; border-radius: 10px; } /* Gray 200 */
+        ::-webkit-scrollbar-thumb { background: #a0aec0; border-radius: 10px; } /* Gray 500 */
+        ::-webkit-scrollbar-thumb:hover { background: #718096; } /* Gray 600 */
+
+        /* Transitions */
+        .transition-all { transition: all 0.3s ease-in-out; }
+
+        /* Recording Indicator */
+        .recording-indicator {
+            width: 10px; height: 10px; background-color: #e53e3e; /* Red 600 */
+            border-radius: 50%; animation: pulse 1.5s infinite; display: none; /* Initially hidden */
+        }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+        /* Hide elements initially */
+        #audioPlayer, #saveButton, #stopButton, #quizDisplay, #readAloudStatus { display: none; }
+
+        /* Basic modal styling */
+        .modal-backdrop {
+            position: fixed; inset: 0; /* Covers entire viewport */
+            background-color: rgba(0, 0, 0, 0.6);
+            display: flex; justify-content: center; align-items: center;
+            opacity: 0; visibility: hidden; transition: opacity 0.3s ease, visibility 0.3s ease; z-index: 100;
+        }
+        .modal-content {
+            background-color: white; padding: 2rem; border-radius: 0.75rem; /* Slightly larger radius */
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); /* Shadow lg */
+            max-width: 90%; width: 550px; max-height: 85vh; overflow-y: auto;
+            transform: scale(0.95) translateY(10px); transition: transform 0.3s ease, opacity 0.3s ease;
+            opacity: 0;
+        }
+        .modal-backdrop.active { opacity: 1; visibility: visible; }
+        .modal-backdrop.active .modal-content { transform: scale(1) translateY(0); opacity: 1; }
+
+        /* Styling for buttons - Enhanced */
+        .btn {
+            display: inline-flex; align-items: center; justify-content: center;
+            padding: 0.6rem 1.2rem; border-radius: 0.375rem; /* rounded-md */
+            font-weight: 600; /* font-semibold */
+            transition: all 0.2s ease;
+            cursor: pointer; border: 1px solid transparent;
+            text-align: center; white-space: nowrap;
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); /* Subtle shadow */
+        }
+        .btn:focus { outline: 2px solid transparent; outline-offset: 2px; ring: 2px; ring-offset-1; } /* Focus ring */
+        .btn-primary { background-color: #4f46e5; color: white; border-color: #4f46e5; } /* indigo-600 */
+        .btn-primary:hover { background-color: #4338ca; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); } /* indigo-700 */
+        .btn-primary:focus { ring-color: #6366f1; } /* indigo-400 */
+        .btn-danger { background-color: #dc2626; color: white; border-color: #dc2626; } /* red-600 */
+        .btn-danger:hover { background-color: #b91c1c; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); } /* red-700 */
+        .btn-danger:focus { ring-color: #f87171; } /* red-400 */
+        .btn-success { background-color: #16a34a; color: white; border-color: #16a34a; } /* green-600 */
+        .btn-success:hover { background-color: #15803d; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); } /* green-700 */
+         .btn-success:focus { ring-color: #4ade80; } /* green-400 */
+        .btn-secondary { background-color: #6b7280; color: white; border-color: #6b7280; } /* gray-500 */
+        .btn-secondary:hover { background-color: #4b5563; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); } /* gray-600 */
+        .btn-secondary:focus { ring-color: #9ca3af; } /* gray-400 */
+         .btn-info { background-color: #2563eb; color: white; border-color: #2563eb; } /* blue-600 */
+        .btn-info:hover { background-color: #1d4ed8; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); } /* blue-700 */
+         .btn-info:focus { ring-color: #60a5fa; } /* blue-400 */
+        .btn-warning { background-color: #f59e0b; color: white; border-color: #f59e0b; } /* amber-500 */
+        .btn-warning:hover { background-color: #d97706; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); } /* amber-600 */
+        .btn-warning:focus { ring-color: #fbbf24; } /* amber-400 */
+        .btn-icon { padding: 0.6rem; } /* Consistent padding for icon buttons */
+        .btn-sm { padding: 0.4rem 0.8rem; font-size: 0.875rem; } /* Smaller button */
+
+        /* Card styling - Enhanced */
+        .card {
+            background-color: white; padding: 1.5rem; /* p-6 */
+            border-radius: 0.75rem; /* rounded-xl */
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.04); /* Softer shadow */
+            border: 1px solid #e2e8f0; /* Gray-200 border */
+            margin-bottom: 1.5rem; /* mb-6 */
+        }
+        .card-title {
+            font-size: 1.125rem; /* text-lg */ font-weight: 600; /* font-semibold */
+            margin-bottom: 1rem; /* mb-4 */ color: #1a202c; /* Gray 900 */
+            padding-bottom: 0.5rem; border-bottom: 1px solid #edf2f7; /* Gray 200 */
+        }
+        .form-label { display: block; font-size: 0.875rem; font-weight: 500; color: #4a5568; margin-bottom: 0.25rem; } /* Gray 700 */
+        .form-input, .form-textarea, .form-select {
+            width: 100%; padding: 0.6rem 0.75rem; border: 1px solid #cbd5e0; /* Gray 400 */
+            border-radius: 0.375rem; /* rounded-md */
+            background-color: white;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+        .form-input:focus, .form-textarea:focus, .form-select:focus {
+            outline: none; border-color: #4f46e5; /* Indigo 600 */
+            box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.2); /* Indigo focus ring */
+        }
+        .form-textarea { min-height: 80px; }
+
+        /* Accessibility Helper */
+        .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border-width: 0; }
+
+        /* WhatsApp Button */
+        .btn-whatsapp { background-color: #25D366; color: white; border-color: #25D366; }
+        .btn-whatsapp:hover { background-color: #128C7E; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+        .btn-whatsapp:focus { ring-color: #4ade80; }
+
+        /* Instagram Button */
+        .btn-instagram { background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%); color: white; border: none; }
+        .btn-instagram:hover { opacity: 0.9; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+        .btn-instagram:focus { ring-color: #f09433; }
+
+    </style>
+</head>
+<body class="antialiased">
+
+    <header class="bg-white shadow-sm sticky top-0 z-40">
+        <nav class="container mx-auto px-4 md:px-6 max-w-7xl">
+            <div class="flex justify-between items-center h-16">
+                <a href="#" class="flex items-center space-x-2" aria-label="StudyCast Home">
+                    <i class="fas fa-podcast text-indigo-600 text-2xl" aria-hidden="true"></i>
+                    <span class="text-2xl font-bold text-indigo-600">StudyCast</span>
+                </a>
+                <div class="flex items-center space-x-3">
+                     <button class="btn btn-secondary btn-sm" onclick="alert('Login functionality requires a backend.')">Login</button>
+                    <button class="btn btn-primary btn-sm" onclick="alert('Registration functionality requires a backend.')">Register</button>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <main class="container mx-auto p-4 md:px-6 max-w-7xl mt-6">
+
+        <div id="messageArea" class="mb-6 text-sm text-center" aria-live="polite"></div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+            <section class="lg:col-span-1 space-y-6" aria-labelledby="actions-title">
+                 <h2 id="actions-title" class="sr-only">Actions</h2> <div class="card">
+                    <h3 class="card-title">New Recording</h3>
+                    <div class="space-y-4">
+                        <div>
+                            <label for="subject" class="form-label">Subject/Topic:</label>
+                            <input type="text" id="subject" name="subject" placeholder="e.g., Cellular Respiration" class="form-input">
+                        </div>
+                        <button id="recordButton" class="btn btn-primary w-full">
+                            <i class="fas fa-microphone mr-2" aria-hidden="true"></i>Start Recording
+                        </button>
+                        <button id="stopButton" class="btn btn-danger w-full">
+                            <div class="recording-indicator mr-2" aria-hidden="true"></div>
+                            <i class="fas fa-stop mr-2" aria-hidden="true"></i>Stop Recording
+                        </button>
+                        <div id="recordingStatus" class="text-sm text-gray-600 text-center min-h-[20px]" aria-live="polite"></div>
+                        <audio id="audioPlayer" controls class="w-full mt-2"></audio>
+                        <button id="saveButton" class="btn btn-success w-full mt-2">
+                            <i class="fas fa-save mr-2" aria-hidden="true"></i>Save Recording
+                        </button>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3 class="card-title">Generate Quiz (AI)</h3>
+                     <p class="text-xs text-gray-500 mb-3">Simulated Feature: Enter a topic to generate sample quiz questions.</p>
+                    <div class="space-y-3">
+                        <div>
+                            <label for="quizTopic" class="form-label">Quiz Topic:</label>
+                            <input type="text" id="quizTopic" placeholder="Enter topic from your recordings" class="form-input">
+                        </div>
+                        <button id="generateQuizButton" class="btn btn-info w-full">
+                            <i class="fas fa-question-circle mr-2" aria-hidden="true"></i>Generate Quiz
+                        </button>
+                        <div id="quizDisplay" class="mt-4 p-3 bg-gray-50 rounded border border-gray-200 text-sm space-y-2" aria-live="polite">
+                            </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3 class="card-title">Process & Read Aloud</h3>
+                    <p class="text-xs text-gray-500 mb-3">Simulated: Input text, upload PDF/Image to hear text read aloud (needs backend).</p>
+                    <div class="space-y-4">
+                         <div>
+                            <label for="textInput" class="form-label">Paste or Type Text:</label>
+                            <textarea id="textInput" rows="4" placeholder="Enter text here to be read aloud..." class="form-textarea"></textarea>
+                        </div>
+
+                        <div>
+                            <label for="fileUpload" class="form-label">Or Upload PDF/Image:</label>
+                            <input type="file" id="fileUpload" accept=".pdf, image/*" class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer border border-gray-300 rounded-md p-1">
+                        </div>
+
+                         <button id="readAloudButton" class="btn btn-warning w-full">
+                             <i class="fas fa-volume-up mr-2" aria-hidden="true"></i>Process & Read Aloud
+                        </button>
+                        <div id="readAloudStatus" class="mt-2 text-sm text-blue-700 bg-blue-100 p-3 rounded" aria-live="polite">
+                            </div>
+                    </div>
+                </div>
+
+                 <div class="card">
+                    <h3 class="card-title">Contact Developer</h3>
+                    <p class="text-sm text-gray-600 mb-4">Need help or have feedback? Reach out!</p>
+                    <div class="flex flex-col sm:flex-row gap-3">
+                        <a href="https://wa.me/60182510322" target="_blank" rel="noopener noreferrer" class="btn btn-whatsapp w-full flex-1">
+                            <i class="fab fa-whatsapp mr-2" aria-hidden="true"></i> WhatsApp
+                        </a>
+                        <a href="https://www.instagram.com/ebrahimtaherofficial" target="_blank" rel="noopener noreferrer" class="btn btn-instagram w-full flex-1">
+                            <i class="fab fa-instagram mr-2" aria-hidden="true"></i> Instagram
+                        </a>
+                    </div>
+                </div>
+
+            </section>
+
+            <section class="lg:col-span-2 card" aria-labelledby="recordings-title">
+                <h2 id="recordings-title" class="card-title flex justify-between items-center">
+                    <span>My Recordings</span>
+                    </h2>
+                <div class="mb-4">
+                    <label for="playlistFilter" class="form-label">Filter by Topic:</label>
+                    <select id="playlistFilter" class="form-select bg-white">
+                        <option value="all">All Topics</option>
+                        </select>
+                </div>
+                <div id="recordingsList" class="space-y-3 max-h-[70vh] overflow-y-auto pr-2 -mr-2"> <p class="text-gray-500 text-center py-6">No recordings yet. Use the 'New Recording' section to start!</p>
+                </div>
+            </section>
+
+        </div>
+
+    </main>
+
+    <footer class="text-center text-sm text-gray-500 py-6 mt-8">
+        StudyCast Prototype &copy; 2025 </footer>
+
+    <div id="summaryModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="summaryModalTitle">
+        <div class="modal-content">
+            <h3 id="summaryModalTitle" class="text-lg font-semibold mb-4 text-gray-800">AI Generated Summary (Simulated)</h3>
+            <p id="summaryText" class="text-sm text-gray-600 whitespace-pre-wrap leading-relaxed">Generating summary...</p>
+             <button onclick="closeModal('summaryModal')" class="btn btn-secondary mt-6 float-right">Close</button>
+        </div>
+    </div>
+
+    <script>
+        // === DOM Elements ===
+        const recordButton = document.getElementById('recordButton');
+        const stopButton = document.getElementById('stopButton');
+        const saveButton = document.getElementById('saveButton');
+        const subjectInput = document.getElementById('subject');
+        const recordingsList = document.getElementById('recordingsList');
+        const audioPlayer = document.getElementById('audioPlayer');
+        const recordingStatus = document.getElementById('recordingStatus');
+        const messageArea = document.getElementById('messageArea');
+        const playlistFilter = document.getElementById('playlistFilter');
+        const recordingIndicator = stopButton.querySelector('.recording-indicator');
+        // Quiz elements
+        const generateQuizButton = document.getElementById('generateQuizButton');
+        const quizTopicInput = document.getElementById('quizTopic');
+        const quizDisplay = document.getElementById('quizDisplay');
+        // Upload/Input elements
+        const textInput = document.getElementById('textInput'); // New Text Area
+        const fileUploadInput = document.getElementById('fileUpload');
+        const readAloudButton = document.getElementById('readAloudButton');
+        const readAloudStatus = document.getElementById('readAloudStatus');
+        // Modal elements
+        const summaryModal = document.getElementById('summaryModal');
+        const summaryText = document.getElementById('summaryText');
+
+        // === State Variables ===
+        let mediaRecorder;
+        let audioChunks = [];
+        let audioBlob = null;
+        let currentAudioUrl = null; // Temporary URL for current recording preview/save
+        let recordingsData = []; // Holds metadata loaded from localStorage
+
+        // === Initialization ===
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log("StudyCast Initializing...");
+            loadRecordingsFromStorage();
+            renderRecordingsList();
+            updatePlaylistFilter();
+            checkMediaSupport();
+            console.log("StudyCast Initialized.");
+        });
+
+        // === Event Listeners ===
+        recordButton.addEventListener('click', startRecording);
+        stopButton.addEventListener('click', stopRecording);
+        saveButton.addEventListener('click', saveRecording);
+        playlistFilter.addEventListener('change', renderRecordingsList);
+        generateQuizButton.addEventListener('click', simulateGenerateQuiz);
+        readAloudButton.addEventListener('click', simulateProcessAndReadAloud); // Updated handler
+        fileUploadInput.addEventListener('change', handleFileSelect);
+
+        // === Core Recording Functions ===
+
+        function checkMediaSupport() {
+             if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                 displayMessage('Audio recording is not supported in this browser.', 'error');
+                 recordButton.disabled = true;
+                 recordButton.classList.add('opacity-50', 'cursor-not-allowed');
+                 recordButton.innerHTML = '<i class="fas fa-microphone-slash mr-2" aria-hidden="true"></i>Mic Not Supported';
+                 console.warn("MediaDevices API not supported.");
+            } else {
+                 console.log("MediaDevices API supported.");
+            }
+        }
+
+        async function startRecording() {
+            console.log("Attempting to start recording...");
+            if (subjectInput.value.trim() === '') {
+                displayMessage('Please enter a subject/topic first.', 'error');
+                subjectInput.focus();
+                return;
+            }
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                 displayMessage('Already recording.', 'info');
+                 return;
+            }
+
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                console.log("Microphone access granted.");
+                mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' }); // Specify mimeType if possible
+                audioChunks = [];
+                audioBlob = null;
+                if (currentAudioUrl) URL.revokeObjectURL(currentAudioUrl); // Revoke previous temporary URL
+                currentAudioUrl = null;
+
+                mediaRecorder.ondataavailable = event => {
+                    if (event.data.size > 0) {
+                        audioChunks.push(event.data);
+                        console.log(`Audio chunk received: ${event.data.size} bytes`);
+                    }
+                };
+
+                mediaRecorder.onstop = () => {
+                    console.log("Recording stopped.");
+                    if (audioChunks.length === 0) {
+                        console.warn("No audio data chunks recorded.");
+                        displayMessage("Recording failed or was too short.", "error");
+                         // Reset UI fully
+                        stopButton.style.display = 'none';
+                        recordingIndicator.style.display = 'none';
+                        recordButton.style.display = 'inline-flex';
+                        saveButton.style.display = 'none';
+                        audioPlayer.style.display = 'none';
+                        recordingStatus.textContent = '';
+                        stream.getTracks().forEach(track => track.stop()); // Ensure stream is stopped
+                        return;
+                    }
+                    audioBlob = new Blob(audioChunks, { type: mediaRecorder.mimeType || 'audio/webm' });
+                    currentAudioUrl = URL.createObjectURL(audioBlob);
+                    console.log(`Blob created: ${audioBlob.size} bytes, Type: ${audioBlob.type}, URL: ${currentAudioUrl}`);
+
+                    audioPlayer.src = currentAudioUrl;
+                    audioPlayer.style.display = 'block';
+                    stopButton.style.display = 'none';
+                    recordingIndicator.style.display = 'none';
+                    recordButton.style.display = 'inline-flex';
+                    saveButton.style.display = 'inline-flex';
+                    recordingStatus.textContent = 'Recording finished. Preview or Save.';
+                    displayMessage('Recording stopped. Preview or save.', 'success');
+                    stream.getTracks().forEach(track => track.stop()); // Release microphone
+                    console.log("Microphone stream stopped.");
+                };
+
+                mediaRecorder.onerror = (event) => {
+                    console.error("MediaRecorder error:", event.error);
+                    displayMessage(`Recording error: ${event.error.name}`, 'error');
+                     // Reset UI on error
+                    stopButton.style.display = 'none';
+                    recordingIndicator.style.display = 'none';
+                    recordButton.style.display = 'inline-flex';
+                    saveButton.style.display = 'none';
+                    audioPlayer.style.display = 'none';
+                    recordingStatus.textContent = 'Recording failed.';
+                    stream.getTracks().forEach(track => track.stop());
+                };
+
+
+                mediaRecorder.start(1000); // Optional: timeslice in ms for ondataavailable events
+                console.log("MediaRecorder started.");
+                recordButton.style.display = 'none';
+                stopButton.style.display = 'inline-flex';
+                recordingIndicator.style.display = 'inline-block'; // Use inline-block or flex
+                saveButton.style.display = 'none';
+                audioPlayer.style.display = 'none';
+                audioPlayer.src = '';
+                recordingStatus.textContent = 'Recording...';
+                displayMessage('Recording started...', 'info');
+
+            } catch (err) {
+                console.error("Error accessing microphone:", err);
+                displayMessage(`Mic Error: ${err.message}. Please grant permission.`, 'error');
+                recordButton.style.display = 'inline-flex';
+                stopButton.style.display = 'none';
+                recordingIndicator.style.display = 'none';
+                recordingStatus.textContent = '';
+            }
+        }
+
+        function stopRecording() {
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                console.log("Stopping MediaRecorder...");
+                mediaRecorder.stop(); // Triggers 'onstop'
+            } else {
+                 console.warn("Stop recording called but recorder not active.");
+            }
+        }
+
+        function saveRecording() {
+            console.log("Attempting to save recording...");
+            if (!audioBlob || !currentAudioUrl) {
+                 displayMessage('No recording available to save.', 'error'); return;
+            }
+            const subject = subjectInput.value.trim();
+            if (!subject) {
+                 displayMessage('Please enter a subject/topic.', 'error'); subjectInput.focus(); return;
+            }
+
+            // Create metadata object. Store the temporary URL for this session's playback.
+            const newRecording = {
+                id: `rec_${Date.now()}`,
+                subject: subject,
+                date: new Date().toISOString(),
+                temporaryUrl: currentAudioUrl // This URL is only valid for the current browser session
+            };
+            console.log("Saving metadata:", newRecording);
+
+            try {
+                recordingsData.push(newRecording); // Add to in-memory array first
+
+                // Prepare data for localStorage (remove temporary URL as it won't work later)
+                 const dataToStore = recordingsData.map(r => ({
+                     id: r.id,
+                     subject: r.subject,
+                     date: r.date
+                     // temporaryUrl is omitted intentionally
+                 }));
+                localStorage.setItem('studyCastRecordings', JSON.stringify(dataToStore));
+                console.log("Metadata saved to localStorage.");
+
+                renderRecordingsList(); // Update UI list
+                updatePlaylistFilter(); // Update filter dropdown
+
+                // Reset form and state, but keep currentAudioUrl associated with the added item in memory
+                subjectInput.value = '';
+                audioPlayer.style.display = 'none';
+                audioPlayer.src = '';
+                saveButton.style.display = 'none';
+                recordingStatus.textContent = '';
+                audioBlob = null;
+                // currentAudioUrl is NOT nulled here - it's linked to the item in recordingsData
+
+                displayMessage('Recording metadata saved (audio playback only for this session).', 'success');
+
+            } catch (e) {
+                 console.error("LocalStorage saving error:", e);
+                 displayMessage('Error saving recording. Storage might be full or disabled.', 'error');
+                 // Rollback: Remove the item added to the in-memory array if storage failed
+                 recordingsData = recordingsData.filter(r => r.id !== newRecording.id);
+            }
+        }
+
+        // === Recording List & Filtering ===
+
+        function loadRecordingsFromStorage() {
+             console.log("Loading recordings from localStorage...");
+             try {
+                // Load only the persistent metadata. Temporary URLs are session-based and added later if needed.
+                const storedData = JSON.parse(localStorage.getItem('studyCastRecordings') || '[]');
+                // Initialize recordingsData with loaded metadata, temporaryUrl will be null initially
+                recordingsData = storedData.map(item => ({ ...item, temporaryUrl: null }));
+                console.log(`Loaded ${recordingsData.length} recordings metadata.`);
+             } catch (e) {
+                 console.error("Error loading from localStorage:", e);
+                 recordingsData = [];
+                 displayMessage("Could not load previous recordings data.", "error");
+                 localStorage.removeItem('studyCastRecordings'); // Clear potentially corrupt data
+             }
+        }
+
+        function renderRecordingsList() {
+            console.log("Rendering recordings list...");
+            recordingsList.innerHTML = ''; // Clear list first
+            const filterValue = playlistFilter.value;
+            console.log(`Filtering by: ${filterValue}`);
+
+            const filteredRecordings = recordingsData.filter(rec =>
+                filterValue === 'all' || rec.subject === filterValue
+            ).sort((a, b) => new Date(b.date) - new Date(a.date)); // Sort newest first
+
+            if (filteredRecordings.length === 0) {
+                const message = filterValue === 'all'
+                    ? 'No recordings yet. Use the \'New Recording\' section to start!'
+                    : `No recordings found for topic: "${filterValue}".`;
+                recordingsList.innerHTML = `<p class="text-gray-500 text-center py-6">${message}</p>`;
+                console.log("No recordings to display.");
+                return;
+            }
+
+            console.log(`Displaying ${filteredRecordings.length} recordings.`);
+            filteredRecordings.forEach(rec => {
+                // Find the corresponding item in the full recordingsData array to get the temporaryUrl (if it exists for this session)
+                const fullRecData = recordingsData.find(r => r.id === rec.id);
+                const listItem = createRecordingElement(fullRecData || rec); // Pass the one with temporaryUrl if available
+                recordingsList.appendChild(listItem);
+            });
+        }
+
+        function createRecordingElement(recording) {
+            const item = document.createElement('div');
+            item.className = 'p-4 border border-gray-200 rounded-lg bg-white flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 shadow-sm hover:shadow-md transition-shadow duration-200';
+            item.dataset.id = recording.id;
+
+            // Info Section
+            const infoDiv = document.createElement('div');
+            infoDiv.className = 'flex-grow mb-3 sm:mb-0 mr-4'; // Added margin-right
+            infoDiv.innerHTML = `
+                <span class="font-semibold text-gray-800 block text-base">${recording.subject}</span>
+                <span class="text-sm text-gray-500 block mt-1">
+                    <i class="far fa-clock mr-1" aria-hidden="true"></i> ${new Date(recording.date).toLocaleString()}
+                </span>
+                ${!recording.temporaryUrl ? '<span class="text-xs text-red-600 block mt-1 italic">(Playback unavailable after page reload in this demo)</span>' : ''}
+            `;
+
+            // Controls Section
+            const controlsDiv = document.createElement('div');
+            controlsDiv.className = 'flex items-center space-x-2 flex-shrink-0 w-full sm:w-auto justify-end';
+
+            // Play Button (only if temporary URL exists for this session)
+            if (recording.temporaryUrl) {
+                const playBtn = document.createElement('button');
+                playBtn.className = 'btn btn-info btn-sm btn-icon';
+                playBtn.setAttribute('aria-label', `Play recording: ${recording.subject}`);
+                playBtn.title = 'Play Recording';
+                playBtn.innerHTML = '<i class="fas fa-play" aria-hidden="true"></i>';
+                playBtn.onclick = () => {
+                    audioPlayer.src = recording.temporaryUrl;
+                    audioPlayer.style.display = 'block';
+                    audioPlayer.play();
+                    displayMessage(`Playing: ${recording.subject}`, 'info');
+                    audioPlayer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                };
+                controlsDiv.appendChild(playBtn);
+            }
+
+            // Summarize Button (Simulated)
+            const summarizeBtn = document.createElement('button');
+            summarizeBtn.className = 'btn btn-secondary btn-sm btn-icon';
+            summarizeBtn.setAttribute('aria-label', `Summarize recording: ${recording.subject} (Simulated)`);
+            summarizeBtn.title = 'Summarize (AI - Simulated)';
+            summarizeBtn.innerHTML = '<i class="fas fa-align-left" aria-hidden="true"></i>';
+            summarizeBtn.onclick = () => simulateSummarize(recording.subject);
+            controlsDiv.appendChild(summarizeBtn);
+
+            // Share Button (Simulated)
+            const shareBtn = document.createElement('button');
+            shareBtn.className = 'btn btn-secondary btn-sm btn-icon';
+             shareBtn.setAttribute('aria-label', `Share recording: ${recording.subject} (Simulated)`);
+            shareBtn.title = 'Share (Simulated)';
+            shareBtn.innerHTML = '<i class="fas fa-share-alt" aria-hidden="true"></i>';
+            shareBtn.onclick = () => simulateShare(recording.id);
+            controlsDiv.appendChild(shareBtn);
+
+            // Delete Button
+            const deleteBtn = document.createElement('button');
+            deleteBtn.className = 'btn btn-danger btn-sm btn-icon';
+            deleteBtn.setAttribute('aria-label', `Delete recording: ${recording.subject}`);
+            deleteBtn.title = 'Delete Recording';
+            deleteBtn.innerHTML = '<i class="fas fa-trash-alt" aria-hidden="true"></i>';
+            deleteBtn.onclick = () => deleteRecording(recording.id, item);
+            controlsDiv.appendChild(deleteBtn);
+
+
+            item.appendChild(infoDiv);
+            item.appendChild(controlsDiv);
+            return item;
+        }
+
+
+        function deleteRecording(id, listItemElement) {
+            console.log(`Attempting to delete recording ID: ${id}`);
+            if (!confirm(`Are you sure you want to delete the metadata for this recording? This cannot be undone.`)) {
+                console.log("Deletion cancelled by user.");
+                return;
+            }
+
+            try {
+                // Find the URL to revoke if it exists in the current session data
+                const recordingToDelete = recordingsData.find(rec => rec.id === id);
+                if (recordingToDelete && recordingToDelete.temporaryUrl) {
+                    URL.revokeObjectURL(recordingToDelete.temporaryUrl);
+                    console.log(`Revoked temporary URL for deleted recording: ${recordingToDelete.temporaryUrl}`);
+                }
+
+                recordingsData = recordingsData.filter(rec => rec.id !== id); // Remove from memory
+                 // Prepare data for localStorage (without temporary URLs)
+                 const dataToStore = recordingsData.map(r => ({ id: r.id, subject: r.subject, date: r.date }));
+                localStorage.setItem('studyCastRecordings', JSON.stringify(dataToStore)); // Update storage
+                console.log("Updated localStorage after deletion.");
+
+                listItemElement.remove(); // Remove from UI
+                displayMessage('Recording metadata deleted.', 'info');
+
+                if (recordingsList.children.length === 0 || (recordingsList.children.length === 1 && recordingsList.children[0].tagName === 'P')) {
+                     renderRecordingsList(); // Re-render to show empty message if needed
+                }
+                updatePlaylistFilter(); // Update filter options
+
+            } catch (e) {
+                 console.error("Error deleting recording:", e);
+                 displayMessage('Error deleting recording metadata.', 'error');
+                 // Force reload from storage to try and recover consistent state
+                 loadRecordingsFromStorage();
+                 renderRecordingsList();
+            }
+        }
+
+        function updatePlaylistFilter() {
+            console.log("Updating playlist filter...");
+            const topics = [...new Set(recordingsData.map(rec => rec.subject))].sort();
+            const currentFilterValue = playlistFilter.value;
+
+            playlistFilter.innerHTML = '<option value="all">All Topics</option>'; // Reset
+
+            topics.forEach(topic => {
+                const option = document.createElement('option');
+                option.value = topic; option.textContent = topic;
+                playlistFilter.appendChild(option);
+            });
+
+            // Restore selection if possible
+            playlistFilter.value = topics.includes(currentFilterValue) ? currentFilterValue : 'all';
+            console.log(`Playlist filter updated. Selected: ${playlistFilter.value}`);
+        }
+
+        // === Simulated AI & File Features ===
+
+        function simulateShare(id) {
+             const fakeLink = `${window.location.origin}/shared/${id}`; // Example structure
+             console.log(`Simulating share for ID: ${id}. Link: ${fakeLink}`);
+             navigator.clipboard.writeText(fakeLink).then(() => {
+                 displayMessage('Simulated share link copied to clipboard!', 'success');
+                 console.log("Simulated link copied.");
+             }).catch(err => {
+                 displayMessage('Could not copy simulated link (browser support?).', 'error');
+                 console.error('Clipboard copy failed:', err);
+             });
+         }
+
+        function simulateSummarize(topic) {
+            console.log(`Simulating summary generation for topic: ${topic}`);
+            summaryText.textContent = `Generating AI summary for "${topic}"...\n\n(This is a simulation. Real AI processing requires a backend integration.)\n\nKey points might include:\n- Point 1 derived from audio.\n- Point 2 highlighting a core concept.\n- Point 3 mentioning a specific detail.\n\nThis demonstrates where the actual summary would appear.`;
+            openModal('summaryModal');
+         }
+
+        function simulateGenerateQuiz() {
+            const topic = quizTopicInput.value.trim();
+            console.log(`Simulating quiz generation for topic: ${topic}`);
+            if (!topic) {
+                displayMessage('Please enter a topic for the quiz.', 'error');
+                quizDisplay.style.display = 'none';
+                quizDisplay.innerHTML = ''; // Clear previous content
+                return;
+            }
+            quizDisplay.style.display = 'block';
+            // More elaborate simulated questions
+            quizDisplay.innerHTML = `
+                <p class="font-semibold mb-2 text-gray-700">Sample Quiz for "${topic}" (Simulated):</p>
+                <div class="space-y-3">
+                    <div>
+                        <p>1. Based on the recording, what is the primary function of [Concept A]?</p>
+                        <ul class="list-disc list-inside ml-4 text-gray-600"><li>Option A</li><li>Option B</li><li>Option C</li></ul>
+                    </div>
+                    <div>
+                        <p>2. Which of the following details about [Process B] was mentioned?</p>
+                        <ul class="list-disc list-inside ml-4 text-gray-600"><li>Detail X</li><li>Detail Y</li><li>Detail Z</li></ul>
+                    </div>
+                     <div>
+                        <p>3. True or False: [Statement related to topic]?</p>
+                        <ul class="list-disc list-inside ml-4 text-gray-600"><li>True</li><li>False</li></ul>
+                    </div>
+                </div>
+                <p class="text-xs text-gray-500 mt-3 italic">(Real quiz generation needs backend AI analysis of the recording or topic)</p>
+            `;
+            displayMessage(`Generated sample quiz questions for "${topic}".`, 'info');
+        }
+
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (file) {
+                 console.log(`File selected: ${file.name}, Size: ${file.size}, Type: ${file.type}`);
+                 displayMessage(`File selected: ${file.name}. Ready for 'Process & Read Aloud' simulation.`, 'info');
+                 readAloudStatus.style.display = 'none'; // Hide previous status
+                 textInput.value = ''; // Clear text area if file is selected
+            }
+        }
+
+        function simulateProcessAndReadAloud() {
+            const textContent = textInput.value.trim();
+            const file = fileUploadInput.files[0];
+            let statusMessage = '';
+            let processType = '';
+
+            console.log("Simulating Process & Read Aloud...");
+
+            if (textContent) {
+                console.log("Processing text input.");
+                processType = 'text input';
+                statusMessage = `Simulating reading aloud for the provided text...\n(Requires backend Text-to-Speech integration).`;
+                // Clear file input if text was processed
+                fileUploadInput.value = '';
+
+            } else if (file) {
+                console.log(`Processing file: ${file.name}`);
+                processType = `file "${file.name}"`;
+                 statusMessage = `Simulating text extraction (OCR if image/PDF) and reading aloud for ${processType}...\n(Requires backend OCR and TTS integration).`;
+                 // Optionally clear text area if file was processed
+                 // textInput.value = '';
+            } else {
+                displayMessage('Please enter text or select a file first.', 'error');
+                console.log("No input provided for Read Aloud.");
+                return;
+            }
+
+            readAloudStatus.textContent = statusMessage;
+            readAloudStatus.style.display = 'block';
+            displayMessage(`Simulating Read Aloud feature for ${processType}.`, 'info');
+            console.log("Read Aloud simulation displayed.");
+        }
+
+
+        // === Utility Functions ===
+
+        function displayMessage(message, type = 'info', duration = 5000) {
+            console.log(`Displaying message (${type}): ${message}`);
+            messageArea.textContent = message;
+            // Apply appropriate Tailwind classes based on type
+            messageArea.className = 'mb-6 text-sm text-center p-3 rounded-md transition-all opacity-100'; // Reset classes + base style
+
+            let bgColor, textColor;
+            switch (type) {
+                case 'success': bgColor = 'bg-green-100'; textColor = 'text-green-800'; break;
+                case 'error':   bgColor = 'bg-red-100';   textColor = 'text-red-800';   break;
+                case 'info':
+                default:        bgColor = 'bg-blue-100';  textColor = 'text-blue-800';  break;
+            }
+            messageArea.classList.add(bgColor, textColor);
+
+            // Clear message after duration
+            setTimeout(() => {
+                messageArea.classList.add('opacity-0');
+                // Optional: remove text after fade out
+                 setTimeout(() => {
+                     if (messageArea.textContent === message) { // Avoid clearing newer messages
+                         messageArea.textContent = '';
+                         messageArea.className = 'mb-6 text-sm text-center'; // Clear styles
+                     }
+                 }, 300); // Wait for fade out transition
+            }, duration);
+        }
+
+        function openModal(modalId) {
+            const modal = document.getElementById(modalId);
+            if(modal) {
+                console.log(`Opening modal: ${modalId}`);
+                modal.classList.add('active');
+                // Focus on the close button or the content area for accessibility
+                const focusableElement = modal.querySelector('button, [tabindex]:not([tabindex="-1"])');
+                if (focusableElement) {
+                    focusableElement.focus();
+                }
+            } else {
+                console.error(`Modal with ID ${modalId} not found.`);
+            }
+        }
+
+        function closeModal(modalId) {
+             const modal = document.getElementById(modalId);
+            if(modal) {
+                console.log(`Closing modal: ${modalId}`);
+                modal.classList.remove('active');
+            }
+        }
+
+        // Close modal if backdrop is clicked (but not content inside)
+        window.addEventListener('click', (event) => {
+            if (event.target.classList.contains('modal-backdrop')) {
+                closeModal(event.target.id);
+            }
+        });
+         // Close modal on Escape key press
+        window.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape') {
+                const activeModal = document.querySelector('.modal-backdrop.active');
+                if (activeModal) {
+                    closeModal(activeModal.id);
+                }
+            }
+        });
+
+    </script>
+
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
